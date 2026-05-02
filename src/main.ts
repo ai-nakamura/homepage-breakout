@@ -1,5 +1,13 @@
 import * as type from './types.ts';
 
+const COLS = 7;
+const ROWS = 4;
+const BRICK_W = 60;
+const BRICK_H = 16;
+const PADDING = 8;
+const OFFSET_TOP = 40;
+const OFFSET_LEFT = 20;
+
 class Game {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
@@ -13,16 +21,8 @@ class Game {
   bricks: type.Brick[][] = [];
   score: number = 0;
 
-  COLS = 7;
-  ROWS = 4;
-  BRICK_W = 60;
-  BRICK_H = 16;
-  PADDING = 8;
-  OFFSET_TOP = 40;
-  OFFSET_LEFT = 20;
-
   constructor() {
-    const { keys, bricks, COLS, ROWS, BRICK_W, BRICK_H, OFFSET_LEFT, OFFSET_TOP, PADDING } = this;
+    const { keys, bricks } = this;
 
     const canvas = document.getElementById('game') as HTMLCanvasElement;
     const ctx = canvas.getContext('2d');
@@ -69,7 +69,7 @@ class Game {
   }
 
   checkBrickCollisions() {
-    const { ball, bricks, COLS, ROWS, BRICK_H, BRICK_W } = this;
+    const { ball, bricks } = this;
     let { score } = this;
 
     for (let r = 0; r < ROWS; r++) {
@@ -111,6 +111,7 @@ class Game {
     }
 
     this.checkPaddleCollision();
+    this.checkBrickCollisions();
 
     // Bottom — game over
     if (ball.y + ball.r > canvas.height) {
@@ -126,7 +127,7 @@ class Game {
   }
 
   draw() {
-    const { canvas, ctx, ball, paddle, bricks, COLS, ROWS, BRICK_H, BRICK_W } = this;
+    const { canvas, ctx, ball, paddle, bricks } = this;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#0095DD';
@@ -153,7 +154,6 @@ class Game {
   loop() {
     this.update();
     this.draw();
-    this.checkBrickCollisions();
     requestAnimationFrame(() => this.loop());
   }
 }
