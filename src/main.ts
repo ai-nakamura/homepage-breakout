@@ -1,3 +1,5 @@
+import * as type from './types.ts';
+
 class Game {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
@@ -6,9 +8,9 @@ class Game {
     ArrowRight: false,
   };
 
-  ball = { x: 240, y: 160, r: 8, dx: 3, dy: -3 };
-  paddle = { x: 190, y: 290, w: 100, h: 10, speed: 5 };
-  bricks: { x: number; y: number; active: boolean }[][] = [];
+  ball: type.Ball = { x: 240, y: 160, r: 8, dx: 3, dy: -3 };
+  paddle: type.Paddle = { x: 190, y: 290, w: 100, h: 10, speed: 5 };
+  bricks: type.Brick[][] = [];
   score: number = 0;
 
   COLS = 7;
