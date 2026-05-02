@@ -24,12 +24,16 @@ class Game {
   constructor() {
     const { keys, bricks } = this;
 
-    const canvas = document.getElementById('game') as HTMLCanvasElement;
-    const ctx = canvas.getContext('2d');
+    const canvas = document.getElementById('game');
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error('Canvas not supported');
+    }
 
+    const ctx = canvas.getContext('2d');
     if (!ctx) {
       throw new Error('No Canvas ctx');
     }
+
     this.canvas = canvas;
     this.ctx = ctx;
 
