@@ -7,6 +7,7 @@ export type Ball = Entity & {
   r: number;
   dx: number;
   dy: number;
+  speed: number;
 };
 export type Paddle = Entity & {
   w: number;

@@ -2,49 +2,88 @@ import * as type from './types.ts';
 
 const COLS = 7;
 const ROWS = 4;
-const BRICK_W = 60;
-const BRICK_H = 16;
+const BRICK_W = 56;
+const BRICK_H = 14;
 const PADDING = 8;
-const OFFSET_TOP = 40;
-const OFFSET_LEFT = 20;
+
+const ROW_COLORS = ['#e05', '#e84', '#4a9', '#47c'];
 
 class Game {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
-  keys: { [key: string]: boolean } = {
+  scoreDisplay: HTMLElement;
+  livesDisplay: HTMLElement;
+  keys: Record<string, boolean> = {
     ArrowLeft: false,
     ArrowRight: false,
   };
 
-  ball: type.Ball = { x: 240, y: 160, r: 8, dx: 3, dy: -3 };
+  ball: type.Ball = { x: 240, y: 290, r: 8, dx: 0, dy: 0, speed: 1 };
   paddle: type.Paddle = { x: 190, y: 290, w: 100, h: 10, speed: 5 };
   bricks: type.Brick[][] = [];
   score: number = 0;
+  lives: number = 3;
+  state: 'start' | 'playing' | 'gameover' | 'win' = 'start';
+
+  OFFSET_TOP = 40;
+  OFFSET_LEFT = 0;
 
   constructor() {
-    const { keys, bricks } = this;
+    const { keys } = this;
 
     const canvas = document.getElementById('game');
     if (!(canvas instanceof HTMLCanvasElement)) {
       throw new Error('Canvas not supported');
     }
-
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       throw new Error('No Canvas ctx');
     }
+    const scoreDisplay = document.getElementById('score-display');
+    if (!scoreDisplay) {
+      throw new Error('No Score Display');
+    }
+    const livesDisplay = document.getElementById('lives-display');
+    if (!livesDisplay) {
+      throw new Error('No lives Display');
+    }
 
     this.canvas = canvas;
     this.ctx = ctx;
+    this.scoreDisplay = scoreDisplay;
+    this.livesDisplay = livesDisplay;
 
-    document.addEventListener('keydown', (e) => {
-      keys[e.key] = true;
-    });
+    this.OFFSET_LEFT = (canvas.width - (COLS * (BRICK_W + PADDING) - PADDING)) / 2;
+
     document.addEventListener('keyup', (e) => {
       keys[e.key] = false;
     });
+    document.addEventListener('keydown', (e) => {
+      const { state } = this;
 
-    // Build the brick grid
+      keys[e.key] = true;
+      if (e.key === ' ') {
+        if (state === 'start' || state === 'gameover' || state === 'win') {
+          this.resetGame();
+          this.state = 'playing';
+          console.log(state);
+        }
+        e.preventDefault();
+      }
+    });
+
+    this.resetGame();
+  }
+
+  resetGame() {
+    const { canvas, bricks, paddle, OFFSET_LEFT, OFFSET_TOP } = this;
+    this.score = 0;
+    this.lives = 3;
+
+    console.log('resetGame');
+
+    this.resetBall();
+
     for (let r = 0; r < ROWS; r++) {
       bricks[r] = [];
       for (let c = 0; c < COLS; c++) {
@@ -55,8 +94,20 @@ class Game {
         };
       }
     }
+    paddle.x = (canvas.width - paddle.w) / 2;
+
+    this.updateHUD();
   }
 
+  resetBall() {
+    const { canvas, ball } = this;
+    ball.x = canvas.width / 2;
+    ball.y = canvas.height - 60;
+    ball.dx = ball.speed;
+    ball.dy = -ball.speed;
+  }
+
+  // ── Collision helpers ────────────────────────────────────────────
   checkPaddleCollision() {
     const { ball, paddle } = this;
 
@@ -74,7 +125,6 @@ class Game {
 
   checkBrickCollisions() {
     const { ball, bricks } = this;
-    let { score } = this;
 
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
@@ -87,77 +137,135 @@ class Game {
         if (hitX && hitY) {
           ball.dy = -ball.dy;
           b.active = false;
-          score++;
+          this.score++;
 
           if (bricks.flat().every((bk) => !bk.active)) {
-            alert('You win!');
-            document.location.reload();
+            this.state = 'win';
           }
         }
       }
     }
   }
 
-  update() {
-    const { canvas, keys, ball, paddle } = this;
+  checkBottomCollision() {
+    const { canvas, ball } = this;
 
-    ball.x += ball.dx;
-    ball.y += ball.dy;
-
-    // Left / right walls
-    if (ball.x - ball.r < 0 || ball.x + ball.r > canvas.width) {
-      ball.dx = -ball.dx;
-    }
-
-    // Top wall
-    if (ball.y - ball.r < 0) {
-      ball.dy = -ball.dy;
-    }
-
-    this.checkPaddleCollision();
-    this.checkBrickCollisions();
-
-    // Bottom — game over
     if (ball.y + ball.r > canvas.height) {
-      alert('Game over!');
-      document.location.reload();
-    }
-
-    if (keys['ArrowLeft']) paddle.x -= paddle.speed;
-    if (keys['ArrowRight']) paddle.x += paddle.speed;
-
-    // Clamp to canvas edges
-    paddle.x = Math.max(0, Math.min(canvas.width - paddle.w, paddle.x));
-  }
-
-  draw() {
-    const { canvas, ctx, ball, paddle, bricks } = this;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#0095DD';
-    ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
-
-    // Draw ball
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-    ctx.fillStyle = '#0095DD';
-    ctx.fill();
-    ctx.closePath();
-
-    // Draw bricks
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        if (bricks[r][c].active) {
-          ctx.fillStyle = '#E94560';
-          ctx.fillRect(bricks[r][c].x, bricks[r][c].y, BRICK_W, BRICK_H);
-        }
+      this.lives--;
+      if (this.lives > 0) {
+        ball.x = canvas.width / 2;
+        ball.y = canvas.height - 60;
+        ball.dx = ball.speed;
+        ball.dy = -ball.speed;
+        // paddle.x = (canvas.width - paddle.w) / 2;
+      } else {
+        this.state = 'gameover';
       }
     }
   }
 
+  // ── Update ───────────────────────────────────────────────────────
+  update() {
+    const { canvas, keys, ball, paddle } = this;
+
+    // Paddle movement
+    if (keys['ArrowLeft']) paddle.x -= paddle.speed;
+    if (keys['ArrowRight']) paddle.x += paddle.speed;
+    paddle.x = Math.max(0, Math.min(canvas.width - paddle.w, paddle.x));
+
+    // Ball movement
+    ball.x += ball.dx;
+    ball.y += ball.dy;
+
+    // Wall collisions
+    if (ball.x - ball.r < 0 || ball.x + ball.r > canvas.width) ball.dx = -ball.dx;
+    if (ball.y - ball.r < 0) ball.dy = -ball.dy;
+
+    // Paddle & brick collisions
+    this.checkPaddleCollision();
+    this.checkBrickCollisions();
+    this.checkBottomCollision();
+    this.updateHUD();
+
+    // Ball fell off bottom
+  }
+
+  updateHUD() {
+    const { livesDisplay, scoreDisplay, lives, score } = this;
+    scoreDisplay.textContent = String(score);
+    livesDisplay.textContent = String(lives);
+  }
+
+  // ── Draw ─────────────────────────────────────────────────────────
+  drawBricks() {
+    const { ctx, bricks } = this;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const b = bricks[r][c];
+        if (!b.active) continue;
+        ctx.fillStyle = ROW_COLORS[r];
+        ctx.fillRect(b.x, b.y, BRICK_W, BRICK_H);
+      }
+    }
+  }
+
+  drawBall() {
+    const { ctx, ball } = this;
+
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+    ctx.fillStyle = '#61b6fb';
+    ctx.fill();
+    ctx.closePath();
+  }
+
+  drawPaddle() {
+    const { ctx, paddle } = this;
+
+    ctx.fillStyle = '#61b6fb';
+    ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+  }
+
+  drawOverlay(title: string, subtitle: string) {
+    const { canvas, ctx } = this;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '500 22px "Share Tech Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 12);
+
+    ctx.fillStyle = '#666';
+    ctx.font = '13px "Share Tech Mono", monospace';
+    ctx.fillText(subtitle, canvas.width / 2, canvas.height / 2 + 16);
+    ctx.textAlign = 'left';
+  }
+
   loop() {
-    this.update();
-    this.draw();
+    const { canvas, ctx, score, state } = this;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (state === 'playing') {
+      this.update();
+      this.drawBricks();
+      this.drawPaddle();
+      this.drawBall();
+    } else if (state === 'start') {
+      this.drawBricks();
+      this.drawPaddle();
+      this.drawBall();
+      this.drawOverlay('BREAKOUT', 'press space to play');
+    } else if (state === 'gameover') {
+      this.drawBricks();
+      this.drawPaddle();
+      this.drawOverlay('GAME OVER', 'press space to try again');
+    } else if (state === 'win') {
+      this.drawOverlay('YOU WIN', 'score: ' + score + '  —  press space to play again');
+    }
+
     requestAnimationFrame(() => this.loop());
   }
 }
