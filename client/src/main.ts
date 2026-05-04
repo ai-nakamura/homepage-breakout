@@ -18,7 +18,7 @@ class Game {
     ArrowRight: false,
   };
 
-  ball: type.Ball = { x: 240, y: 290, r: 8, dx: 0, dy: 0, speed: 1 };
+  ball: type.Ball = { x: 240, y: 290, r: 8, dx: 0, dy: 0, speed: 3 };
   paddle: type.Paddle = { x: 190, y: 290, w: 100, h: 10, speed: 5 };
   bricks: type.Brick[][] = [];
   score: number = 0;
