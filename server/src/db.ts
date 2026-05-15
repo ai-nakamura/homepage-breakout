@@ -1,6 +1,6 @@
 import Sqlite, { type Database } from 'better-sqlite3';
 
-const db: Database = new Sqlite('scores.db');
+const db: Database = new Sqlite('../scores.db');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS scores(
