@@ -1,4 +1,5 @@
 import * as type from './types.ts';
+import * as api from './api.ts';
 
 const COLS = 7;
 const ROWS = 4;
@@ -11,6 +12,7 @@ const ROW_COLORS = ['#e05', '#e84', '#4a9', '#47c'];
 class Game {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
+  nameInput: HTMLInputElement;
   scoreDisplay: HTMLElement;
   livesDisplay: HTMLElement;
   keys: Record<string, boolean> = {
@@ -23,7 +25,8 @@ class Game {
   bricks: type.Brick[][] = [];
   score: number = 0;
   lives: number = 3;
-  state: 'start' | 'playing' | 'gameover' | 'win' = 'start';
+  state: 'start' | 'playing' | 'win' | 'gameover' | 'submitting' = 'start';
+  pendingState: 'win' | 'gameover' = 'gameover';
 
   OFFSET_TOP = 40;
   OFFSET_LEFT = 0;
@@ -39,6 +42,10 @@ class Game {
     if (!ctx) {
       throw new Error('No Canvas ctx');
     }
+    const nameInput = document.getElementById('name-input');
+    if (!(nameInput instanceof HTMLInputElement)) {
+      throw new Error('No name input');
+    }
     const scoreDisplay = document.getElementById('score-display');
     if (!scoreDisplay) {
       throw new Error('No Score Display');
@@ -50,6 +57,7 @@ class Game {
 
     this.canvas = canvas;
     this.ctx = ctx;
+    this.nameInput = nameInput;
     this.scoreDisplay = scoreDisplay;
     this.livesDisplay = livesDisplay;
 
@@ -70,6 +78,22 @@ class Game {
         }
         e.preventDefault();
       }
+    });
+    this.nameInput.addEventListener('keydown', async (e) => {
+      if (e.key !== 'Enter') {
+        return;
+      }
+
+      const name = this.nameInput.value.trim();
+      if (!name) {
+        return;
+      }
+
+      await api.submitScore(name, this.score);
+
+      this.nameInput.value = '';
+      this.drawNameInput(false);
+      this.state = this.pendingState;
     });
 
     this.resetGame();
@@ -140,7 +164,9 @@ class Game {
           this.score++;
 
           if (bricks.flat().every((bk) => !bk.active)) {
-            this.state = 'win';
+            this.pendingState = 'win';
+            this.state = 'submitting';
+            this.drawNameInput(true);
           }
         }
       }
@@ -159,7 +185,9 @@ class Game {
         ball.dy = -ball.speed;
         // paddle.x = (canvas.width - paddle.w) / 2;
       } else {
-        this.state = 'gameover';
+        this.pendingState = 'gameover';
+        this.state = 'submitting';
+        this.drawNameInput(true);
       }
     }
   }
@@ -197,6 +225,16 @@ class Game {
   }
 
   // ── Draw ─────────────────────────────────────────────────────────
+  drawBall() {
+    const { ctx, ball } = this;
+
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+    ctx.fillStyle = '#61b6fb';
+    ctx.fill();
+    ctx.closePath();
+  }
+
   drawBricks() {
     const { ctx, bricks } = this;
     for (let r = 0; r < ROWS; r++) {
@@ -207,16 +245,6 @@ class Game {
         ctx.fillRect(b.x, b.y, BRICK_W, BRICK_H);
       }
     }
-  }
-
-  drawBall() {
-    const { ctx, ball } = this;
-
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-    ctx.fillStyle = '#61b6fb';
-    ctx.fill();
-    ctx.closePath();
   }
 
   drawPaddle() {
@@ -243,6 +271,10 @@ class Game {
     ctx.textAlign = 'left';
   }
 
+  drawNameInput(visible: boolean) {
+    this.nameInput.style.display = visible ? 'block' : 'none';
+  }
+
   loop() {
     const { canvas, ctx, score, state } = this;
 
@@ -250,13 +282,13 @@ class Game {
 
     if (state === 'playing') {
       this.update();
+      this.drawBall();
       this.drawBricks();
       this.drawPaddle();
-      this.drawBall();
     } else if (state === 'start') {
+      this.drawBall();
       this.drawBricks();
       this.drawPaddle();
-      this.drawBall();
       this.drawOverlay('BREAKOUT', 'press space to play');
     } else if (state === 'gameover') {
       this.drawBricks();
@@ -264,6 +296,10 @@ class Game {
       this.drawOverlay('GAME OVER', 'press space to try again');
     } else if (state === 'win') {
       this.drawOverlay('YOU WIN', 'score: ' + score + '  —  press space to play again');
+    } else if (state === 'submitting') {
+      this.drawBall();
+      this.drawBricks();
+      this.drawPaddle();
     }
 
     requestAnimationFrame(() => this.loop());
