@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS scores (
 
 ## Deployment
 
-The app is deployed on a Linode VPS at `45.79.86.7`, running as the `ai` user under systemd, with nginx as a reverse proxy.
+The app is deployed on a Linode VPS running as a user under systemd, with nginx as a reverse proxy.
 
 ### Server layout
 
