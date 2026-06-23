@@ -1,4 +1,4 @@
-const API = '/api';
+const API = 'api';
 
 export async function submitScore(name: string, score: number): Promise<void> {
   const res = await fetch(`${API}/scores`, {
@@ -8,7 +8,6 @@ export async function submitScore(name: string, score: number): Promise<void> {
   });
 
   if (!res.ok) {
-    // why do we need this second await?
     const error = await res.json();
     throw new Error(error ?? 'Failed to submit score.');
   }

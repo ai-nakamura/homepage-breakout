@@ -28,6 +28,9 @@ class Game {
   state: 'start' | 'playing' | 'win' | 'gameover' | 'submitting' = 'start';
   pendingState: 'win' | 'gameover' = 'gameover';
 
+  topScores: { name: string; score: number }[] = [];
+  lastSubmittedName: string = '';
+
   OFFSET_TOP = 40;
   OFFSET_LEFT = 0;
 
@@ -89,13 +92,22 @@ class Game {
         return;
       }
 
-      await api.submitScore(name, this.score);
-
-      this.nameInput.value = '';
-      this.drawNameInput(false);
-      this.state = this.pendingState;
+      try {
+        await api.submitScore(name, this.score);
+        this.lastSubmittedName = name;
+        this.topScores = await api.fetchTopScores();
+      } catch (err) {
+        console.error('Failed to submit score:', err);
+      } finally {
+        this.nameInput.value = '';
+        this.drawNameInput(false);
+        this.state = this.pendingState;
+      }
     });
 
+    api.fetchTopScores().then((scores) => {
+      this.topScores = scores;
+    });
     this.resetGame();
   }
 
@@ -103,6 +115,7 @@ class Game {
     const { canvas, bricks, paddle, OFFSET_LEFT, OFFSET_TOP } = this;
     this.score = 0;
     this.lives = 3;
+    this.lastSubmittedName = '';
 
     console.log('resetGame');
 
@@ -141,7 +154,6 @@ class Game {
     if (hitsPaddleTop && withinPaddleX) {
       ball.dy = -Math.abs(ball.dy); // always bounce upward
 
-      // Optional: vary angle based on hit position
       const hitPos = (ball.x - paddle.x) / paddle.w; // 0 (left) to 1 (right)
       ball.dx = (hitPos - 0.5) * 6; // skew direction
     }
@@ -214,8 +226,6 @@ class Game {
     this.checkBrickCollisions();
     this.checkBottomCollision();
     this.updateHUD();
-
-    // Ball fell off bottom
   }
 
   updateHUD() {
@@ -260,15 +270,25 @@ class Game {
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    ctx.textAlign = 'center';
+
     ctx.fillStyle = '#fff';
     ctx.font = '500 22px "Share Tech Mono", monospace';
-    ctx.textAlign = 'center';
     ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 12);
 
     ctx.fillStyle = '#666';
     ctx.font = '13px "Share Tech Mono", monospace';
     ctx.fillText(subtitle, canvas.width / 2, canvas.height / 2 + 16);
-    ctx.textAlign = 'left';
+
+    // Top scores overlay
+    const startY = canvas.height / 2 + 48;
+
+    this.topScores.forEach((entry, i) => {
+      const isPlayer = entry.name === this.lastSubmittedName;
+      ctx.fillStyle = isPlayer ? '#61b6fb' : '#555';
+      ctx.font = '11px "Share Tech Mono", monospace';
+      ctx.fillText(`${i + 1}.  ${entry.name}  ${entry.score}`, canvas.width / 2, startY + i * 10);
+    });
   }
 
   drawNameInput(visible: boolean) {
@@ -300,6 +320,7 @@ class Game {
       this.drawBall();
       this.drawBricks();
       this.drawPaddle();
+      this.drawOverlay(this.pendingState === 'win' ? 'YOU WIN' : 'GAME OVER', 'enter your name below');
     }
 
     requestAnimationFrame(() => this.loop());
