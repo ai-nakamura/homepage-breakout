@@ -1,0 +1,13 @@
+[Unit]
+Description=Breakout game server
+After=network.target
+
+[Service]
+Type=simple
+User=ai
+WorkingDirectory=/home/ai/apps/breakout/server
+ExecStart=/home/ai/.nvm/versions/node/v22.23.0/bin/npm start
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
